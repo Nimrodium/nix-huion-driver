@@ -12,7 +12,7 @@
 , fontconfig
 , libgpg-error
 , version
-, versionHash
+, hash
 , useCN
 }:
 
@@ -38,7 +38,7 @@ in
 stdenv.mkDerivation rec {
   pname = "huion-tablet-driver";
   inherit version;
-  src = fetchDriver version versionHash useCN;
+  src = fetchDriver version hash useCN;
   nativeBuildInputs = [
     autoPatchelfHook
     makeWrapper
