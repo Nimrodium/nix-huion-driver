@@ -3,6 +3,7 @@
 , fetchurl
 , autoPatchelfHook
 , makeWrapper
+, libredirect
 , xdotool
 , libGL
 , freetype
@@ -30,7 +31,7 @@ let
   #   curlOptsList = [ "-H" "User-Agent: Mozilla/5.0" "-H" "Referer: https://www.huion.com/" ];
   # };
   fetchDriver = version: hash: useCN: let toplevel = if useCN then "cn" else "com"; in fetchurl {
-    # url = "https://driver.huion.${toplevel}/Driver/Linux/HuionTablet_LinuxDriver_v${version}.x86_64.tar.xz";
+
     url = "https://driverdl.huion.${toplevel}/driver/Linux/HuionTablet_LinuxDriver_v${version}.x86_64.tar.xz";
     inherit hash;
     curlOptsList = [ "-H" "User-Agent: Mozilla/5.0" "-H" "Referer: https://www.huion.${toplevel}/" ];
@@ -55,6 +56,7 @@ stdenv.mkDerivation rec {
     e2fsprogs
     fontconfig
     libgpg-error
+
   ];
 
   installPhase = ''
@@ -116,8 +118,11 @@ stdenv.mkDerivation rec {
       --replace 'ps -e|grep' 'pgrep -x' \
       --replace 'killall' 'pkill -x'
   '';
-
-  dontFixup = false;
+  postFixup = ''
+    wrapProgram $out/bin/huiontablet \
+      --set LD_PRELOAD ${libredirect}/lib/libredirect.so \
+      --set NIX_REDIRECTS "$out/lib/huiontablet/res=/var/lib/huiontablet/res"
+  '';
 
   meta = with lib; {
     description = "Huion tablet linux driver (repackaged for NixOS)";

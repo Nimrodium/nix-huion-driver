@@ -28,7 +28,7 @@
 
         in
         {
-          huionDriver = pkgs.callPackage ./package.nix { version = "15.0.0.175"; hash = "UNKNOWN"; useCN = true;};
+          huionDriver = pkgs.callPackage ./package.nix { version = "15.0.0.175"; hash = "sha256-sCUztiMQ+CVlM1SxaQa/5vcK417GSUxB6JgBoilsPAY="; useCN = true;};
           huionDriverCN = pkgs.callPackage ./package.nix { version = "15.0.0.C159"; hash = "sha256-iAcUBJxgQ5d35aROIxVJ2Dx/9nf70DBSwNYpmterpFo="; useCN = true; };
 
           default = self.packages.${system}.huionDriver;
