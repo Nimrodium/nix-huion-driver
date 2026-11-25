@@ -97,7 +97,9 @@ stdenv.mkDerivation rec {
     makeWrapper $out/lib/huiontablet/huiontablet.sh \
       $out/bin/huiontablet \
       --prefix LD_LIBRARY_PATH : ${lib.makeLibraryPath buildInputs} \
-      --prefix PATH : ${lib.makeBinPath [ xdotool ]}
+      --prefix PATH : ${lib.makeBinPath [ xdotool ]} \
+      --set LD_PRELOAD ${libredirect}/lib/libredirect.so \
+      --set NIX_REDIRECTS "$out/lib/huiontablet/res=/var/lib/huiontablet/res"
 
     makeWrapper $out/lib/huiontablet/huionCore.sh \
       $out/bin/huionCore \
@@ -112,8 +114,7 @@ stdenv.mkDerivation rec {
       --replace 'dirname=`dirname $0`' "dirname=$out/lib/huiontablet" \
       --replace 'ps -e|grep' "pgrep -x" \
       --replace 'killall' "pkill -x" \
-      --set LD_PRELOAD ${libredirect}/lib/libredirect.so \
-      --set NIX_REDIRECTS "$out/lib/huiontablet/res=/var/lib/huiontablet/res"
+
 
     substituteInPlace huiontablet/huionCore.sh \
       --replace 'dirname=`dirname $0`' "dirname=$out/lib/huiontablet" \
