@@ -5,6 +5,7 @@
 , makeWrapper
 , libredirect
 , xdotool
+, xmodmap
 , libGL
 , freetype
 , libz
@@ -56,7 +57,7 @@ stdenv.mkDerivation rec {
     e2fsprogs
     fontconfig
     libgpg-error
-
+    xmodmap
   ];
 
   installPhase = ''
@@ -92,14 +93,24 @@ stdenv.mkDerivation rec {
     cp icon/huiontablet.png \
        $out/share/icons/hicolor/256x256/apps/
 
-    # wrapper
-    mkdir -p $out/bin
+    # # wrapper
+    # mkdir -p $out/bin
+    # makeWrapper $out/lib/huiontablet/huiontablet.sh \
+    #   $out/bin/huiontablet \
+    #   --prefix LD_LIBRARY_PATH : ${lib.makeLibraryPath buildInputs} \
+    #   --prefix PATH : ${lib.makeBinPath [ xdotool ]} \
+    #   --set LD_PRELOAD ${libredirect}/lib/libredirect.so \
+    #   --set NIX_REDIRECTS "$out/lib/huiontablet/res=/var/lib/huiontablet/res"
+
     makeWrapper $out/lib/huiontablet/huiontablet.sh \
       $out/bin/huiontablet \
       --prefix LD_LIBRARY_PATH : ${lib.makeLibraryPath buildInputs} \
-      --prefix PATH : ${lib.makeBinPath [ xdotool ]} \
-      --set LD_PRELOAD ${libredirect}/lib/libredirect.so \
-      --set NIX_REDIRECTS "$out/lib/huiontablet/res=/var/lib/huiontablet/res"
+      --prefix PATH : ${lib.makeBinPath [ xdotool xmodmap ]} \
+      --prefix LD_PRELOAD : ${libredirect}/lib/libredirect.so \
+      --run 'data="''${XDG_DATA_HOME:-$HOME/.local/share}/huiontablet/res"' \
+      --run 'mkdir -p "$data"' \
+      --run 'cp -rn --no-preserve=mode ${placeholder "out"}/lib/huiontablet/res/. "$data"/' \
+      --run 'export NIX_REDIRECTS="${placeholder "out"}/lib/huiontablet/res=$data"'
 
     makeWrapper $out/lib/huiontablet/huionCore.sh \
       $out/bin/huionCore \
@@ -113,15 +124,18 @@ stdenv.mkDerivation rec {
     substituteInPlace huiontablet/huiontablet.sh \
       --replace 'dirname=`dirname $0`' "dirname=$out/lib/huiontablet" \
       --replace 'ps -e|grep' "pgrep -x" \
-      --replace 'killall' "pkill -x" \
-
+      --replace 'killall' "pkill -x"
 
     substituteInPlace huiontablet/huionCore.sh \
       --replace 'dirname=`dirname $0`' "dirname=$out/lib/huiontablet" \
       --replace 'ps -e|grep' 'pgrep -x' \
       --replace 'killall' 'pkill -x'
   '';
-
+  # postFixup = ''
+  #   wrapProgram $out/bin/huiontablet \
+  #     --set LD_PRELOAD ${libredirect}/lib/libredirect.so \
+  #     --set NIX_REDIRECTS "$out/lib/huiontablet/res=/var/lib/huiontablet/res"
+  # '';
 
   meta = with lib; {
     description = "Huion tablet linux driver (repackaged for NixOS)";
