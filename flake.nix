@@ -25,10 +25,12 @@
             inherit system;
             config.allowUnfree = true;
           };
+
         in
         {
-          huionDriver = pkgs.callPackage ./package.nix { };
-          huionDriverCN = pkgs.callPackage ./package.nix { cnVersion = true; };
+          huionDriver = pkgs.callPackage ./package.nix { version = "15.0.0.175"; hash = "UNKNOWN"; useCN = true;};
+          huionDriverCN = pkgs.callPackage ./package.nix { version = "15.0.0.C159"; hash = "sha256-iAcUBJxgQ5d35aROIxVJ2Dx/9nf70DBSwNYpmterpFo="; useCN = true; };
+
           default = self.packages.${system}.huionDriver;
         }
       );

@@ -11,26 +11,34 @@
 , e2fsprogs
 , fontconfig
 , libgpg-error
-, cnVersion ? false
+, version
+, versionHash
+, useCN
 }:
 
 let
-  version = if cnVersion then "15.0.0.C159" else "15.0.0.181";
-  src = if cnVersion then fetchurl {
-    url = "https://driver.huion.cn/Driver/Linux/HuionTablet_LinuxDriver_v${version}.x86_64.tar.xz";
-    hash = "sha256-iAcUBJxgQ5d35aROIxVJ2Dx/9nf70DBSwNYpmterpFo=";
-    curlOptsList = [ "-H" "User-Agent: Mozilla/5.0" "-H" "Referer: https://www.huion.cn/" ];
-  }
-  else fetchurl {
-    url = "https://driverdl.huion.com/driver/Linux/HuionTablet_LinuxDriver_v${version}.x86_64.tar.xz";
-    hash = "sha256-rKDsMOna23nuxlOIuAAHb79kUW8GjPAodLYaNfiyLro=";
-    curlOptsList = [ "-H" "User-Agent: Mozilla/5.0" "-H" "Referer: https://www.huion.com/" ];
+
+  # version = if cnVersion then "15.0.0.C159" else "15.0.0.181";
+  # src = if cnVersion then fetchurl {
+  #   url = "https://driver.huion.cn/Driver/Linux/HuionTablet_LinuxDriver_v${version}.x86_64.tar.xz";
+  #   hash = "sha256-iAcUBJxgQ5d35aROIxVJ2Dx/9nf70DBSwNYpmterpFo=";
+  #   curlOptsList = [ "-H" "User-Agent: Mozilla/5.0" "-H" "Referer: https://www.huion.cn/" ];
+  # }
+  # else fetchurl {
+  #   url = "https://driverdl.huion.com/driver/Linux/HuionTablet_LinuxDriver_v${version}.x86_64.tar.xz";
+  #   hash = "sha256-rKDsMOna23nuxlOIuAAHb79kUW8GjPAodLYaNfiyLro=";
+  #   curlOptsList = [ "-H" "User-Agent: Mozilla/5.0" "-H" "Referer: https://www.huion.com/" ];
+  # };
+  fetchDriver = version: hash: useCN: let toplevel = if useCN then "cn" else "com"; in fetchurl {
+    url = "https://driver.huion.${toplevel}/Driver/Linux/HuionTablet_LinuxDriver_v${version}.x86_64.tar.xz";
+    inherit hash;
+    curlOptsList = [ "-H" "User-Agent: Mozilla/5.0" "-H" "Referer: https://www.huion.${toplevel}/" ];
   };
-in 
+in
 stdenv.mkDerivation rec {
   pname = "huion-tablet-driver";
-  inherit version src;
-
+  inherit version;
+  src = fetchDriver version versionHash useCN;
   nativeBuildInputs = [
     autoPatchelfHook
     makeWrapper
