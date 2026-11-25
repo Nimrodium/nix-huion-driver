@@ -111,18 +111,16 @@ stdenv.mkDerivation rec {
     substituteInPlace huiontablet/huiontablet.sh \
       --replace 'dirname=`dirname $0`' "dirname=$out/lib/huiontablet" \
       --replace 'ps -e|grep' "pgrep -x" \
-      --replace 'killall' "pkill -x"
+      --replace 'killall' "pkill -x" \
+      --set LD_PRELOAD ${libredirect}/lib/libredirect.so \
+      --set NIX_REDIRECTS "$out/lib/huiontablet/res=/var/lib/huiontablet/res"
 
     substituteInPlace huiontablet/huionCore.sh \
       --replace 'dirname=`dirname $0`' "dirname=$out/lib/huiontablet" \
       --replace 'ps -e|grep' 'pgrep -x' \
       --replace 'killall' 'pkill -x'
   '';
-  postFixup = ''
-    wrapProgram $out/bin/huiontablet \
-      --set LD_PRELOAD ${libredirect}/lib/libredirect.so \
-      --set NIX_REDIRECTS "$out/lib/huiontablet/res=/var/lib/huiontablet/res"
-  '';
+
 
   meta = with lib; {
     description = "Huion tablet linux driver (repackaged for NixOS)";
