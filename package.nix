@@ -1,53 +1,24 @@
-{ lib
-, stdenv
-, fetchurl
-, autoPatchelfHook
-, makeWrapper
-, libredirect
-, xdotool
-, xmodmap
-, libGL
-, freetype
-, libz
-, libusb1
-, e2fsprogs
-, fontconfig
-, libgpg-error
-, version
-, hash
-, useCN
-}:
+{
+  pkgs,
+  lib,
+  version,
+  hash,
+  useCN,
+  ...
+}:let
+name = "huion-tablet-driver";
+fetchDriver = version: hash: useCN: let toplevel = if useCN then "cn" else "com"; in pkgs.fetchurl {
 
-let
+  url = "https://driverdl.huion.${toplevel}/driver/Linux/HuionTablet_LinuxDriver_v${version}.x86_64.tar.xz";
+  inherit hash;
+  curlOptsList = [ "-H" "User-Agent: Mozilla/5.0" "-H" "Referer: https://www.huion.${toplevel}/" ];
+};
 
-  # version = if cnVersion then "15.0.0.C159" else "15.0.0.181";
-  # src = if cnVersion then fetchurl {
-  #   url = "https://driver.huion.cn/Driver/Linux/HuionTablet_LinuxDriver_v${version}.x86_64.tar.xz";
-  #   hash = "sha256-iAcUBJxgQ5d35aROIxVJ2Dx/9nf70DBSwNYpmterpFo=";
-  #   curlOptsList = [ "-H" "User-Agent: Mozilla/5.0" "-H" "Referer: https://www.huion.cn/" ];
-  # }
-  # else fetchurl {
-  #   url = "https://driverdl.huion.com/driver/Linux/HuionTablet_LinuxDriver_v${version}.x86_64.tar.xz";
-  #   hash = "sha256-rKDsMOna23nuxlOIuAAHb79kUW8GjPAodLYaNfiyLro=";
-  #   curlOptsList = [ "-H" "User-Agent: Mozilla/5.0" "-H" "Referer: https://www.huion.com/" ];
-  # };
-  fetchDriver = version: hash: useCN: let toplevel = if useCN then "cn" else "com"; in fetchurl {
-
-    url = "https://driverdl.huion.${toplevel}/driver/Linux/HuionTablet_LinuxDriver_v${version}.x86_64.tar.xz";
-    inherit hash;
-    curlOptsList = [ "-H" "User-Agent: Mozilla/5.0" "-H" "Referer: https://www.huion.${toplevel}/" ];
-  };
-in
-stdenv.mkDerivation rec {
-  pname = "huion-tablet-driver";
+huion-tablet-driver = pkgs.stdenv.mkDerivation rec {
+  pname = "${name}-unwrapped";
   inherit version;
   src = fetchDriver version hash useCN;
-  nativeBuildInputs = [
-    autoPatchelfHook
-    makeWrapper
-  ];
-
-  buildInputs = [
+  buildInputs = with pkgs; [
     stdenv.cc.cc.lib
     xdotool
     libGL
@@ -59,20 +30,17 @@ stdenv.mkDerivation rec {
     libgpg-error
     xmodmap
   ];
-
+  nativeBuildInputs = with pkgs; [
+    autoPatchelfHook
+    makeWrapper
+  ];
   installPhase = ''
-    runHook preInstall
-
     mkdir -p $out/lib/huiontablet
-    cp -r huiontablet/* $out/lib/huiontablet/
-
+    mkdir -p $out/lib/udev/rules.d
+    cp -r huiontablet $out/lib/
     chmod +x $out/lib/huiontablet/huionCore
     chmod +x $out/lib/huiontablet/huiontablet
-
-    # udev rules
-    mkdir -p $out/lib/udev/rules.d
-    cp huiontablet/res/rule/20-huion.rules \
-       $out/lib/udev/rules.d/
+    cp huiontablet/res/rule/20-huion.rules $out/lib/udev/rules.d/
 
     # desktop
     mkdir -p $out/share/applications
@@ -93,56 +61,49 @@ stdenv.mkDerivation rec {
     cp icon/huiontablet.png \
        $out/share/icons/hicolor/256x256/apps/
 
-    # # wrapper
-    # mkdir -p $out/bin
-    # makeWrapper $out/lib/huiontablet/huiontablet.sh \
-    #   $out/bin/huiontablet \
-    #   --prefix LD_LIBRARY_PATH : ${lib.makeLibraryPath buildInputs} \
-    #   --prefix PATH : ${lib.makeBinPath [ xdotool ]} \
-    #   --set LD_PRELOAD ${libredirect}/lib/libredirect.so \
-    #   --set NIX_REDIRECTS "$out/lib/huiontablet/res=/var/lib/huiontablet/res"
-
+    # wrapper
+    mkdir -p $out/bin
     makeWrapper $out/lib/huiontablet/huiontablet.sh \
       $out/bin/huiontablet \
       --prefix LD_LIBRARY_PATH : ${lib.makeLibraryPath buildInputs} \
-      --prefix PATH : ${lib.makeBinPath [ xdotool xmodmap ]} \
-      --prefix LD_PRELOAD : ${libredirect}/lib/libredirect.so \
-      --run 'data="''${XDG_DATA_HOME:-$HOME/.local/share}/huiontablet/res"' \
-      --run 'mkdir -p "$data"' \
-      --run 'cp -rn --no-preserve=mode ${placeholder "out"}/lib/huiontablet/res/. "$data"/' \
-      --run 'export NIX_REDIRECTS="${placeholder "out"}/lib/huiontablet/res=$data"'
+      --prefix PATH : ${lib.makeBinPath [ pkgs.xdotool pkgs.xmodmap ]} \
+
 
     makeWrapper $out/lib/huiontablet/huionCore.sh \
       $out/bin/huionCore \
       --prefix LD_LIBRARY_PATH : ${lib.makeLibraryPath buildInputs} \
-      --prefix PATH : ${lib.makeBinPath [ xdotool ]}
+      --prefix PATH : ${lib.makeBinPath [ pkgs.xdotool pkgs.xmodmap ]}
 
     runHook postInstall
   '';
-
   postPatch = ''
     substituteInPlace huiontablet/huiontablet.sh \
-      --replace 'dirname=`dirname $0`' "dirname=$out/lib/huiontablet" \
-      --replace 'ps -e|grep' "pgrep -x" \
-      --replace 'killall' "pkill -x"
+      --replace-fail 'dirname=`dirname $0`' "dirname=$out/lib/huiontablet" \
+      --replace-fail 'ps -e|grep' "pgrep -x" \
+      --replace-fail 'killall' "pkill -x"
 
     substituteInPlace huiontablet/huionCore.sh \
-      --replace 'dirname=`dirname $0`' "dirname=$out/lib/huiontablet" \
-      --replace 'ps -e|grep' 'pgrep -x' \
-      --replace 'killall' 'pkill -x'
+      --replace-fail 'dirname=`dirname $0`' "dirname=$out/lib/huiontablet"
   '';
-  # postFixup = ''
-  #   wrapProgram $out/bin/huiontablet \
-  #     --set LD_PRELOAD ${libredirect}/lib/libredirect.so \
-  #     --set NIX_REDIRECTS "$out/lib/huiontablet/res=/var/lib/huiontablet/res"
-  # '';
+};
+in pkgs.buildFHSEnv {
+  pname = name;
+  inherit version;
+  src = fetchDriver version hash useCN;
+#   nativeBuildInputs = with pkgs; [
+#
+#   ];
+  targetPkgs = pkgs: with pkgs; [
+    huion-tablet-driver
+  ];
+  extraPreBwrapCmds = ''
+      RES="$HOME/.local/share/huiontablet/res"
+      mkdir -p "$RES"
+      cp -rn --no-preserve=mode ${huion-tablet-driver}/lib/huiontablet/res/. "$RES"/
+    '';
 
-  meta = with lib; {
-    description = "Huion tablet linux driver (repackaged for NixOS)";
-    homepage = "https://www.huion.com";
-    downloadPage = "https://www.huion.com/download";
-    license = licenses.unfree;
-    platforms = platforms.linux;
-    mainProgram = "huiontablet";
-  };
+    extraBwrapArgs = [
+      "--bind" "$HOME/.local/share/huiontablet/res" "${huion-tablet-driver}/lib/huiontablet/res"
+    ];
+  runScript = "${huion-tablet-driver}/lib/huiontablet/huiontablet.sh";
 }
